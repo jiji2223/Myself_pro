@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>游戏代币性价比计算器</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+    table { border-collapse: collapse; width: 100%; background: white; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background-color: #e3e3e3; }
+    input, button, select { padding: 6px 10px; margin: 10px 5px; font-size: 16px; }
+    .highlight { background-color: #d4f4dd; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h2>🎮 游戏代币性价比计算器</h2>
+
+  <label>💰 输入目标代币数量：<input type="number" id="targetToken" value="430"></label><br>
+  <label>🌐 其他平台优惠：价格 <input type="number" id="altPrice" placeholder="如400"> 元，代币 <input type="number" id="altTokens" placeholder="如430"> 个</label><br>
+  <button onclick="calculate()">计算最优方案</button>
+  <button onclick="sortSingle()">单个方案排序</button>
+  <button onclick="sortCombo()">组合方案排序</button>
+  <button onclick="sortAll()">全部排序</button>
+
+  <h3>📊 单个方案结果</h3>
+  <table id="resultTable">
+    <thead>
+      <tr>
+        <th>渠道</th>
+        <th>价格（元）</th>
+        <th>获得代币</th>
+        <th>单价（元/代币）</th>
+        <th>是否满足目标</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <h3>🧮 最佳组合推荐（2个方案拼单）</h3>
+  <table id="comboTable">
+    <thead>
+      <tr>
+        <th>组合方案</th>
+        <th>总价格（元）</th>
+        <th>总代币</th>
+        <th>单价（元/代币）</th>
+        <th>是否满足目标</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    const baseData = [
+      { name: "官方 10", price: 10, tokens: 10 },
+      { name: "官方 30", price: 30, tokens: 30 },
+      { name: "官方 68", price: 68, tokens: 68.8 },
+      { name: "官方 118", price: 118, tokens: 120 },
+      { name: "官方 198", price: 198, tokens: 206 },
+      { name: "官方 348", price: 348, tokens: 372.5 },
+      { name: "官方 648", price: 648, tokens: 712.8 },
+      { name: "官方 988", price: 988, tokens: 1100 },
+    ];
+
+    let data = [];
+    let comboList = [];
+
+    function calculate() {
+      const target = parseFloat(document.getElementById("targetToken").value);
+      const altPrice = parseFloat(document.getElementById("altPrice").value);
+      const altTokens = parseFloat(document.getElementById("altTokens").value);
+
+      const tbody = document.querySelector("#resultTable tbody");
+      const comboBody = document.querySelector("#comboTable tbody");
+      tbody.innerHTML = "";
+      comboBody.innerHTML = "";
+
+      data = [...baseData];
+      if (!isNaN(altPrice) && !isNaN(altTokens)) {
+        data.push({ name: "其他平台（自填）", price: altPrice, tokens: altTokens });
+      }
+
+      let best = null;
+
+      for (const item of data) {
+        item.unitPrice = (item.price / item.tokens).toFixed(4);
+        item.enough = item.tokens >= target;
+        if (item.enough && (!best || item.unitPrice < best.unitPrice)) {
+          best = item;
+        }
+      }
+
+      data.forEach(item => {
+        const tr = document.createElement("tr");
+        if (item === best) tr.classList.add("highlight");
+        tr.innerHTML = `
+          <td>${item.name}</td>
+          <td>${item.price}</td>
+          <td>${item.tokens}</td>
+          <td>${item.unitPrice}</td>
+          <td>${item.enough ? "✅" : "❌"}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      comboList = [];
+      let bestCombo = null;
+      for (let i = 0; i < data.length; i++) {
+        for (let j = i + 1; j < data.length; j++) {
+          const combo = {
+            name: `${data[i].name} + ${data[j].name}`,
+            price: data[i].price + data[j].price,
+            tokens: data[i].tokens + data[j].tokens
+          };
+          combo.unitPrice = (combo.price / combo.tokens).toFixed(4);
+          combo.enough = combo.tokens >= target;
+          comboList.push(combo);
+          if (combo.enough && (!bestCombo || combo.unitPrice < bestCombo.unitPrice)) {
+            bestCombo = combo;
+          }
+        }
+      }
+
+      comboList.forEach(combo => {
+        const tr = document.createElement("tr");
+        if (combo === bestCombo) tr.classList.add("highlight");
+        tr.innerHTML = `
+          <td>${combo.name}</td>
+          <td>${combo.price}</td>
+          <td>${combo.tokens}</td>
+          <td>${combo.unitPrice}</td>
+          <td>${combo.enough ? "✅" : "❌"}</td>
+        `;
+        comboBody.appendChild(tr);
+      });
+    }
+
+    function renderSortedList(list, tbodyId) {
+      const tbody = document.querySelector(tbodyId);
+      tbody.innerHTML = "";
+      list.forEach(item => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${item.name}</td>
+          <td>${item.price}</td>
+          <td>${item.tokens}</td>
+          <td>${item.unitPrice}</td>
+          <td>${item.enough ? "✅" : "❌"}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function sortSingle() {
+      const sorted = [...data].sort((a, b) => a.unitPrice - b.unitPrice);
+      renderSortedList(sorted, "#resultTable tbody");
+    }
+
+    function sortCombo() {
+      const sorted = [...comboList].sort((a, b) => a.unitPrice - b.unitPrice);
+      renderSortedList(sorted, "#comboTable tbody");
+    }
+
+    function sortAll() {
+      sortSingle();
+      sortCombo();
+    }
+
+    calculate();
+  </script>
+</body>
+</html>
